@@ -23,12 +23,9 @@ build-golang:
   stage: build
   image: quay.io/samsung_cnct/golang-container:latest
   script:
-  - echo $CI_PROJECT_PATH
-  - echo $GOPATH
-  - echo $CI_PROJECT_NAME
+  - pwd
   - gometalinter.v2 --install
   - ln -s /$CI_PROJECT_PATH $GOPATH/src && cd $GOPATH/src/$CI_PROJECT_NAME
-  - dep init
   - dep ensure
   - go vet -v $CI_PROJECT_NAME.go
   - golint $CI_PROJECT_NAME.go // you can run just golint (installed via gometalinter)
