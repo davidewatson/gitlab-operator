@@ -1,4 +1,13 @@
-# Requires Docker 17.05.0 (https://github.com/samsung-cnct/issues/issues/55)
-#FROM golang:1.9.0 as build
+# Start by building the application.
+FROM quay.io/samsung-cnct/golang-container:latest as build
 
+WORKDIR /go/src/app
+COPY . .
+
+RUN go-wrapper download   # "go get -d -v ./..."
+RUN go-wrapper install
+
+# Now copy it into our base image.
 FROM gcr.io/distroless/base
+COPY --from=build /go/bin/app /
+ENTRYPOINT ["/app"]

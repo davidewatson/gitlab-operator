@@ -12,9 +12,9 @@ variables:
   DOCKER_DRIVER: overlay2
   IMAGE_PROD_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
   REGISTRY: quay.io
-  IMAGE_NAME: zabra-container
+  IMAGE_NAME: gitlab-operator
   REGISTRY_USER: your_org # we set this to override to samsung_cnct in gitlab Group Variables
-  ROBOT_ACCOUNT: zabra_container_rw
+  ROBOT_ACCOUNT: gitlab_operator_container_rw
 # Create a Gitlab Secret Variable called REGISTRY_PASSWORD and assign it the value of the registry robot docker login password.
 # DO NOT PASTE THIS PASSWORD HERE.
 
@@ -22,6 +22,22 @@ stages:
   - build
   - test
   - publish
+
+build-golang:
+  stage: build
+  image: quay.io/samsung-cnct/golang-container:latest
+  script:
+  - gometalinter.v2 --install
+  - ln -s $CI_PROJECT_PATH $WORKDIR && cd $WORKDIR/$CI_PROJECT_NAME
+  - dep init
+  - dep ensure
+  - go vet -v $CI_PROJECT_NAME.go
+  - golint $CI_PROJECT_NAME.go // you can run just golint (installed via gometalinter)
+  - gometalinter.v2 $CI_PROJECT_NAME.go //or run the combined linters with gometalinter
+  - go test
+  - go build $CI_PROJECT_NAME.go
+  artifacts:
+    untracked: true
 
 build-branch:
   variables:
