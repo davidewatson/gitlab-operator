@@ -3,9 +3,6 @@ image: docker:latest
 services:
   - docker:dind
 
-before_script:
-  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-
 variables:
   DOCKER_HOST: tcp://localhost:2375
   DOCKER_DRIVER: overlay2
@@ -48,6 +45,7 @@ build-branch:
     - master
   script:
   - docker info
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   - docker build -t $IMAGE_DEVL_NAME .
   - docker push $IMAGE_DEVL_NAME
 
@@ -58,6 +56,7 @@ build-master:
     - tags
   script:
   - docker info
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   - docker build -t $IMAGE_PROD_NAME .
   - docker push $IMAGE_PROD_NAME
 
@@ -71,6 +70,7 @@ publish-master:
     - master
   script:
   - docker info
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   - docker pull $IMAGE_PROD_NAME
   - docker login ${REGISTRY} -u ${REGISTRY_USER}+${ROBOT_ACCOUNT} -p ${REGISTRY_PASSWORD}
   # Any merge to master (i.e. a successful CI pass) will be tagged and pushed as latest
@@ -83,6 +83,7 @@ publish-version-tag:
     - /v[0-9]+\.[0-9]+(\.[0-9]+[a-z]?)?/
   script:
   - docker info
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   - docker pull $IMAGE_PROD_NAME
   - docker login ${REGISTRY} -u ${REGISTRY_USER}+${ROBOT_ACCOUNT} -p ${REGISTRY_PASSWORD}
   # A tag push to master will be pushed to Quay with that tag
