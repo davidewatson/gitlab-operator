@@ -24,10 +24,10 @@ build-golang:
   image: quay.io/samsung_cnct/golang-container:latest
   script:
   - echo $CI_PROJECT_PATH
-  - echo $WORKDIR
+  - echo $GOPATH
   - echo $CI_PROJECT_NAME
   - gometalinter.v2 --install
-  - ln -s $CI_PROJECT_PATH $WORKDIR && cd $WORKDIR/$CI_PROJECT_NAME
+  - ln -s $CI_PROJECT_PATH $GOPATH/src && cd $GOPATH/src/$CI_PROJECT_NAME
   - dep init
   - dep ensure
   - go vet -v $CI_PROJECT_NAME.go
