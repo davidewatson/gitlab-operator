@@ -22,6 +22,10 @@ import (
 	"strings"
 )
 
+var KubeConfig string
+var Namespace string
+var PodName string
+var ContainerName string
 var S3Location string
 var ExitCode int
 
@@ -50,6 +54,34 @@ func init() {
 	RootCmd.SetHelpCommand(helpCmd)
 
 	RootCmd.PersistentFlags().StringVarP(
+		&KubeConfig,
+		"kubeconfig",
+		"k",
+		"",
+		"absolute path to kubeconfig")
+
+	RootCmd.PersistentFlags().StringVarP(
+		&Namespace,
+		"namespace",
+		"n",
+		"",
+		"namespace of pod running gitlab")
+
+	RootCmd.PersistentFlags().StringVarP(
+		&PodName,
+		"pod",
+		"p",
+		"",
+		"name of pod running gitlab")
+
+	RootCmd.PersistentFlags().StringVarP(
+		&ContainerName,
+		"container",
+		"c",
+		"",
+		"name of container in pod running gitlab")
+
+	RootCmd.PersistentFlags().StringVarP(
 		&S3Location,
 		"s3",
 		"s",
@@ -59,9 +91,15 @@ func init() {
 
 // Initializes operatorConfig to use flags, ENV variables and finally configuration files (in that order).
 func initOperatorConfig() {
+	operatorConfig.BindPFlag("kubeconfig", RootCmd.Flags().Lookup("kubeconfig"))
+	operatorConfig.BindPFlag("namespace", RootCmd.Flags().Lookup("namespace"))
+	operatorConfig.BindPFlag("pod", RootCmd.Flags().Lookup("pod"))
+	operatorConfig.BindPFlag("container", RootCmd.Flags().Lookup("container"))
 	operatorConfig.BindPFlag("s3", RootCmd.Flags().Lookup("s3"))
 
 	operatorConfig.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	operatorConfig.SetEnvPrefix("GITLAB_OPERATOR") // prefix for env vars to configure cluster
 	operatorConfig.AutomaticEnv()                  // read in environment variables that match
+
+	operatorConfig.SetDefault("namespace", "default")
 }

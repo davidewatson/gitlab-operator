@@ -21,11 +21,32 @@ import (
 	"time"
 )
 
+func ConstructKubeExecCmdArgs(kubeConfig string, namespace string, podName string, containerName string) []string {
+	return []string{"--kubeconfig", kubeConfig,
+		"--namespace", namespace,
+		"exec",
+		podName,
+		"-c",
+		containerName,
+		"--",
+	}
+}
+
 // Backup (ns, pod) to state store s (s3 bucket for now)
-func Backup(ns string, pod string, s string) (err error) {
-	cmdName := "unwritten"
-	cmdArgs := []string{"backup"}
+func Backup(kubeConfig string, namespace string, podName string, containerName string, s3 string) (err error) {
+	cmdName := "kubectl"
+	cmdBaseArgs := ConstructKubeExecCmdArgs(kubeConfig, namespace, podName, containerName)
 	cmdTimeout := time.Duration(maxApplyTimeout) * time.Second
+
+	cmdExecArgs := []string{"echo", "gitlab-rake", "gitlab:backup:create"}
+	cmdArgs := append(cmdBaseArgs, cmdExecArgs...)
+	err = RunCommand(cmdName, cmdArgs, cmdTimeout)
+	if err != nil {
+		return err
+	}
+
+	cmdExecArgs = []string{"echo", "tar", "cfz", "etc-gitlab.tar.gz", "/etc/gitlab/"}
+	cmdArgs = append(cmdBaseArgs, cmdExecArgs...)
 	err = RunCommand(cmdName, cmdArgs, cmdTimeout)
 	if err != nil {
 		return err
@@ -41,7 +62,12 @@ var backupCmd = &cobra.Command{
 	SilenceUsage: true,
 	Long:         `Backs up `,
 	Run: func(cmd *cobra.Command, args []string) {
-		err := Backup("", "", "")
+		kubeConfig := operatorConfig.GetString("kubeconfig")
+		namespace := operatorConfig.GetString("namespace")
+		podName := operatorConfig.GetString("pod")
+		containerName := operatorConfig.GetString("container")
+		s3bucket := operatorConfig.GetString("s3")
+		err := Backup(kubeConfig, namespace, podName, containerName, s3bucket)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 			ExitCode = 1
