@@ -63,6 +63,7 @@ test-golang:
 		--tests \
 		./...
 
+
 publish-master:
   stage: publish
   only:
