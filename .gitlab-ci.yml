@@ -30,6 +30,7 @@ build-golang:
   - go vet -v main.go 
   - gometalinter.v2 main.go
   - go build main.go
+  - ./main
   artifacts:
     untracked: true
 
