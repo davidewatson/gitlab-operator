@@ -26,11 +26,11 @@ build-golang:
   - pwd
   - gometalinter.v2 --install
   - ln -s /$CI_PROJECT_PATH $GOPATH/src && cd $GOPATH/src/$CI_PROJECT_NAME
+  - ls
   - dep ensure
   - go vet -v main.go 
   - gometalinter.v2 main.go
   - go build main.go
-  - ./main
   artifacts:
     untracked: true
 
@@ -46,8 +46,8 @@ build-branch:
   - docker info
   - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   - docker build -t $IMAGE_DEVL_NAME .
-  - docker run -it --rm $IMAGE_DEVL_NAME version
   - docker push $IMAGE_DEVL_NAME
+  - docker run --rm $IMAGE_DEVL_NAME version
 
 build-master:
   stage: build
