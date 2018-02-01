@@ -18,16 +18,6 @@ stages:
   - build
   - test
   - publish
-
-build-golang:
-  stage: build
-  image: quay.io/samsung_cnct/golang-container:latest
-  script:
-  - gometalinter.v2 --install
-  - ln -s /$CI_PROJECT_PATH $GOPATH/src && cd $GOPATH/src/$CI_PROJECT_NAME
-  - dep ensure
-  - go vet -v main.go 
-  - gometalinter.v2 main.go
  
 build-branch:
   variables:
@@ -54,9 +44,16 @@ build-master:
   - docker build -t $IMAGE_PROD_NAME .
   - docker push $IMAGE_PROD_NAME
 
-# Tests go here!
-# test:
-#    stage: test
+test-golang:
+  stage: test
+  image: quay.io/samsung_cnct/golang-container:latest
+  script:
+  - gometalinter.v2 --install
+  - ln -s /$CI_PROJECT_PATH $GOPATH/src && cd $GOPATH/src/$CI_PROJECT_NAME
+  - ls
+  - dep ensure
+  - go vet -v main.go 
+  - gometalinter.v2 main.go
 
 publish-master:
   stage: publish
