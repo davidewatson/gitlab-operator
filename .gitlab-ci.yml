@@ -52,8 +52,17 @@ test-golang:
   - ln -s /$CI_PROJECT_PATH $GOPATH/src && cd $GOPATH/src/$CI_PROJECT_NAME
   - ls
   - dep ensure
-  - go vet -v main.go 
-  - gometalinter.v2 main.go
+  - gometalinter.v2 \
+    --disable-all \
+		--enable=vet \
+		--enable=gofmt \
+		--enable=golint \
+		--enable=gosimple \
+		--sort=path \
+		--aggregate \
+		--vendor \
+		--tests \
+		./...
 
 publish-master:
   stage: publish
