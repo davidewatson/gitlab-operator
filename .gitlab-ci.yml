@@ -3,18 +3,14 @@ image: docker:latest
 services:
   - docker:dind
 
-before_script:
-  - docker info
-  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-
 variables:
   DOCKER_HOST: tcp://localhost:2375
   DOCKER_DRIVER: overlay2
   IMAGE_PROD_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
   REGISTRY: quay.io
-  IMAGE_NAME: zabra-container
+  IMAGE_NAME: gitlab-operator
   REGISTRY_USER: your_org # we set this to override to samsung_cnct in gitlab Group Variables
-  ROBOT_ACCOUNT: zabra_container_rw
+  ROBOT_ACCOUNT: gitlab_operator_container_rw
 # Create a Gitlab Secret Variable called REGISTRY_PASSWORD and assign it the value of the registry robot docker login password.
 # DO NOT PASTE THIS PASSWORD HERE.
 
@@ -22,7 +18,7 @@ stages:
   - build
   - test
   - publish
-
+ 
 build-branch:
   variables:
     IMAGE_DEVL_NAME: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME-$CI_JOB_ID
@@ -32,6 +28,8 @@ build-branch:
   except:
     - master
   script:
+  - docker info
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   - docker build -t $IMAGE_DEVL_NAME .
   - docker push $IMAGE_DEVL_NAME
 
@@ -41,18 +39,38 @@ build-master:
     - master
     - tags
   script:
+  - docker info
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   - docker build -t $IMAGE_PROD_NAME .
   - docker push $IMAGE_PROD_NAME
 
-# Tests go here!
-# test:
-#    stage: test
+test-golang:
+  stage: test
+  image: quay.io/samsung_cnct/golang-container:latest
+  script:
+  - gometalinter.v2 --install
+  - ln -s /$CI_PROJECT_PATH $GOPATH/src && cd $GOPATH/src/$CI_PROJECT_NAME
+  - dep ensure
+  - gometalinter.v2 \
+    --disable-all \
+		--enable=vet \
+		--enable=gofmt \
+		--enable=golint \
+		--enable=gosimple \
+		--sort=path \
+		--aggregate \
+		--vendor \
+		--tests \
+		./...
+
 
 publish-master:
   stage: publish
   only:
     - master
   script:
+  - docker info
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   - docker pull $IMAGE_PROD_NAME
   - docker login ${REGISTRY} -u ${REGISTRY_USER}+${ROBOT_ACCOUNT} -p ${REGISTRY_PASSWORD}
   # Any merge to master (i.e. a successful CI pass) will be tagged and pushed as latest
@@ -64,6 +82,8 @@ publish-version-tag:
   only:
     - /v[0-9]+\.[0-9]+(\.[0-9]+[a-z]?)?/
   script:
+  - docker info
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   - docker pull $IMAGE_PROD_NAME
   - docker login ${REGISTRY} -u ${REGISTRY_USER}+${ROBOT_ACCOUNT} -p ${REGISTRY_PASSWORD}
   # A tag push to master will be pushed to Quay with that tag
