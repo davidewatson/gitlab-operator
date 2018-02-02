@@ -18,19 +18,10 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"os"
-	"time"
 )
 
 // Backup (ns, pod) to state store s (s3 bucket for now)
 func Backup(ns string, pod string, s string) (err error) {
-	cmdName := "unwritten"
-	cmdArgs := []string{"backup"}
-	cmdTimeout := time.Duration(maxApplyTimeout) * time.Second
-	err = RunCommand(cmdName, cmdArgs, cmdTimeout)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
