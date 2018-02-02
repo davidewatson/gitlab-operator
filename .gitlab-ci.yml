@@ -53,15 +53,15 @@ test-golang:
   - dep ensure
   - gometalinter.v2 \
     --disable-all \
-		--enable=vet \
-		--enable=gofmt \
-		--enable=golint \
-		--enable=gosimple \
-		--sort=path \
-		--aggregate \
-		--vendor \
-		--tests \
-		./...
+	--enable=vet \
+	--enable=gofmt \
+	--enable=golint \
+	--enable=gosimple \
+	--sort=path \
+	--aggregate \
+	--vendor \
+	--tests \
+	./...
 
 
 publish-master:
