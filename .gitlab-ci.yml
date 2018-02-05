@@ -50,19 +50,17 @@ test-golang:
   script:
   - gometalinter.v2 --install
   - ln -s /$CI_PROJECT_PATH $GOPATH/src && cd $GOPATH/src/$CI_PROJECT_NAME
-  - dep ensure
   - gometalinter.v2 \
     --disable-all \
-		--enable=vet \
-		--enable=gofmt \
-		--enable=golint \
-		--enable=gosimple \
-		--sort=path \
-		--aggregate \
-		--vendor \
-		--tests \
-		./...
-
+    --enable=vet \
+    --enable=gofmt \
+    --enable=golint \
+    --enable=gosimple \
+    --sort=path \
+    --aggregate \
+    --vendor \
+    --tests \
+    ./...
 
 publish-master:
   stage: publish

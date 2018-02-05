@@ -15,52 +15,81 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"os/exec"
+	"bytes"
+	"io"
+	"net/url"
 	"strings"
-	"time"
+
+	"k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
-const maxApplyTimeout = 10 // Seconds
+// ExecOptions passed to ExecWithOptions
+type ExecOptions struct {
+	Command []string
 
-// Run command with args and kill if timeout is reached
-func RunCommand(name string, args []string, timeout time.Duration) error {
-	fmt.Printf("Running command \"%v %v\"\n", name, strings.Join(args, " "))
-	cmd := exec.Command(name, args...)
+	Namespace     string
+	PodName       string
+	ContainerName string
 
-	err := cmd.Start()
+	Stdin         io.Reader
+	CaptureStdout bool
+	CaptureStderr bool
+	// If false, whitespace in std{err,out} will be removed.
+	PreserveWhitespace bool
+}
+
+// ExecWithOptions executes a command in the specified container,
+// returning stdout, stderr and error. `options` allowed for
+// additional parameters to be passed.
+func ExecWithOptions(options ExecOptions) (string, string, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		panic(err.Error())
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	const tty = false
+
+	req := clientset.Core().RESTClient().Post().
+		Resource("pods").
+		Name(options.PodName).
+		Namespace(options.Namespace).
+		SubResource("exec").
+		Param("container", options.ContainerName)
+	req.VersionedParams(&v1.PodExecOptions{
+		Container: options.ContainerName,
+		Command:   options.Command,
+		Stdin:     options.Stdin != nil,
+		Stdout:    options.CaptureStdout,
+		Stderr:    options.CaptureStderr,
+		TTY:       tty,
+	}, scheme.ParameterCodec)
+
+	var stdout, stderr bytes.Buffer
+	err = execute("POST", req.URL(), config, options.Stdin, &stdout, &stderr, tty)
+
+	if options.PreserveWhitespace {
+		return stdout.String(), stderr.String(), err
+	}
+
+	return strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()), err
+}
+
+func execute(method string, url *url.URL, config *rest.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool) error {
+	exec, err := remotecommand.NewSPDYExecutor(config, method, url)
 	if err != nil {
 		return err
 	}
-
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-	}()
-
-	select {
-	case <-time.After(timeout):
-		if err := cmd.Process.Kill(); err != nil {
-			panic(fmt.Sprintf("Failed to kill command %v, err %v", name, err))
-		}
-		err = fmt.Errorf("Command %v timed out\n", name)
-		break
-	case err := <-done:
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Command %v returned err %v\n", name, err)
-		}
-		break
-	}
-	if err != nil {
-		output, e := cmd.CombinedOutput()
-		if e != nil {
-			return e
-		}
-		fmt.Fprintf(os.Stderr, "%v", output)
-		return err
-	}
-	fmt.Printf("Command %v completed successfully\n", name)
-
-	return nil
+	return exec.Stream(remotecommand.StreamOptions{
+		Stdin:  stdin,
+		Stdout: stdout,
+		Stderr: stderr,
+		Tty:    tty,
+	})
 }
