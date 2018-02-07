@@ -1,0 +1,16 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gitlab-operator-backup
+  namespace: gitlab
+spec:
+  template:
+    spec:
+      containers:
+      - name: gitlab-operator
+        image: quay.io/samsung_cnct/gitlab-operator:latest
+        command: ["/gitlab-operator", "backup", "-s", "s3://cnct.io/superior/gitlab"]
+        imagePullPolicy: Always
+      serviceAccountName: gitlab-admin
+      restartPolicy: Never
+  backoffLimit: 3

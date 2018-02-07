@@ -16,16 +16,70 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"strings"
 
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 )
+
+// Assumes this process is running within a pod in a k8s cluster. Returns a
+// config and clientset for the cluster.
+func GetInCluster() (*rest.Config, *kubernetes.Clientset, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return config, clientset, nil
+}
+
+const NamespaceFilename = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+
+// Returns the namespace of the pod this process is running within.
+func GetNamespace() (string, error) {
+	if data, err := ioutil.ReadFile(NamespaceFilename); err != nil {
+		return "", err
+	} else {
+		return string(data), nil
+	}
+}
+
+// Returns a slice of podNames matching the key=value label.
+func GetPodsWithLabel(namespace, key, value string) ([]string, error) {
+	_, clientset, err := GetInCluster()
+	if err != nil {
+		return nil, err
+	}
+
+	selector := metav1.LabelSelector{}
+	metav1.AddLabelToSelector(&selector, key, value)
+	labelSelector := metav1.FormatLabelSelector(&selector)
+
+	pods, err := clientset.Core().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil {
+		return nil, fmt.Errorf("Unable to list pods: err %v\n", err)
+	}
+
+	var podNames []string
+	for _, pod := range pods.Items {
+		podNames = append(podNames, pod.Name)
+	}
+
+	return podNames, nil
+}
 
 // ExecOptions passed to ExecWithOptions
 type ExecOptions struct {
@@ -45,14 +99,14 @@ type ExecOptions struct {
 // ExecWithOptions executes a command in the specified container,
 // returning stdout, stderr and error. `options` allowed for
 // additional parameters to be passed.
-func ExecWithOptions(options ExecOptions) (string, string, error) {
-	config, err := rest.InClusterConfig()
+func ExecWithOptions(options ExecOptions) error {
+	var stdout, stderr bytes.Buffer
+
+	fmt.Printf("Running %v\n", options.Command)
+
+	config, clientset, err := GetInCluster()
 	if err != nil {
-		panic(err.Error())
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
+		return err
 	}
 	const tty = false
 
@@ -71,14 +125,16 @@ func ExecWithOptions(options ExecOptions) (string, string, error) {
 		TTY:       tty,
 	}, scheme.ParameterCodec)
 
-	var stdout, stderr bytes.Buffer
 	err = execute("POST", req.URL(), config, options.Stdin, &stdout, &stderr, tty)
 
 	if options.PreserveWhitespace {
-		return stdout.String(), stderr.String(), err
+		fmt.Printf("%v\n%v\n", stdout.String(), stderr.String())
+		return err
+
 	}
 
-	return strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()), err
+	fmt.Printf("%v\n%v\n", strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()))
+	return err
 }
 
 func execute(method string, url *url.URL, config *rest.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool) error {

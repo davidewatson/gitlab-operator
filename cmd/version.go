@@ -29,10 +29,10 @@ var (
 // versionCmd represents the version command
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Prints the version of careen",
-	Long: `Prints the version of careen which is being executed
+	Short: "Prints the version of gitlab-operator",
+	Long: `Prints the version of gitlab-operator which is being executed
 along with additional information including the operation system version and architecture
-which was used to compile careen`,
+which was used to compile gitlab-operator`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Version: ", Version)
 		fmt.Println("Git commit hash: ", Build)

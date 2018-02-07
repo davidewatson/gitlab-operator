@@ -22,6 +22,12 @@ import (
 	"strings"
 )
 
+const (
+	GitLabLabelKey      = "app"
+	GitLabLabelValue    = "gl-gitlab-ce"
+	GitLabContainerName = "gl-gitlab-ce"
+)
+
 var S3Location string
 var ExitCode int
 
@@ -57,7 +63,7 @@ func init() {
 		"s3 bucket or object for backups and restores")
 }
 
-// Initializes operatorConfig to use flags, ENV variables and finally configuration files (in that order).
+// Initializes operatorConfig to use flags or ENV variables (in that order).
 func initOperatorConfig() {
 	operatorConfig.BindPFlag("s3", RootCmd.Flags().Lookup("s3"))
 
