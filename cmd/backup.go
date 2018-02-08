@@ -16,23 +16,73 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
+	"time"
+
+	"github.com/spf13/cobra"
 )
 
-// Backup (ns, pod) to state store s (s3 bucket for now)
-func Backup(ns string, pod string, s string) (err error) {
+// Find the one expected pod with the label selector in this namespace and run
+// GitLab backup on it. Store the result in an s3 bucket.
+func Backup(s3 string) error {
+	namespace, err := GetNamespace()
+	if err != nil {
+		return err
+	}
+
+	key, value := GitLabLabelKey, GitLabLabelValue
+	podNames, err := GetPodsWithLabel(namespace, key, value)
+	if err != nil {
+		return err
+	} else if len(podNames) != 1 {
+		return fmt.Errorf("there were %v pods with label %v=%v when exactly one was expected\n", len(podNames), key, value)
+	}
+
+	fmt.Printf("Begining backup of GitLab instance %v, %v\n", namespace, podNames[0])
+
+	options := ExecOptions{
+		Command:       nil,
+		Namespace:     namespace,
+		PodName:       podNames[0],
+		ContainerName: GitLabContainerName,
+		CaptureStdout: true,
+		CaptureStderr: true,
+	}
+
+	options.Command = []string{"gitlab-rake", "gitlab:backup:create"}
+	err = ExecWithOptions(options)
+	if err != nil {
+		return err
+	}
+
+	filename := GitLabBackupPrefix + time.Now().UTC().Format(time.RFC3339) + ".tar.gz"
+
+	options.Command = []string{"tar", "czf", filename, "/etc/gitlab"}
+	err = ExecWithOptions(options)
+	if err != nil {
+		return err
+	}
+
+	options.Command = []string{"aws", "s3", "cp", filename, s3}
+	err = ExecWithOptions(options)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Finished backup of GitLab instance\n")
+
 	return nil
 }
 
 // backupCmd represents the backup command
 var backupCmd = &cobra.Command{
 	Use:          "backup [-s bucket]",
-	Short:        "Backs up a GitLab deployment and saves the state to an s3 bucket",
+	Short:        "Backs up GitLab",
 	SilenceUsage: true,
-	Long:         `Backs up `,
+	Long:         `Backs up a GitLab deployment and saves the state to an s3 bucket.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		err := Backup("", "", "")
+		s3 := operatorConfig.GetString("s3")
+		err := Backup(s3)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 			ExitCode = 1
