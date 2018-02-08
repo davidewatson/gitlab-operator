@@ -26,6 +26,7 @@ const (
 	GitLabLabelKey      = "app"
 	GitLabLabelValue    = "gl-gitlab-ce"
 	GitLabContainerName = "gl-gitlab-ce"
+	GitLabBackupPrefix  = "gitlab-"
 )
 
 var S3Location string

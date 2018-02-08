@@ -16,8 +16,8 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -55,13 +55,7 @@ func Backup(s3 string) error {
 		return err
 	}
 
-	// !? Instead of a temporary filename, should we embed the date/time, or...
-	file, err := ioutil.TempFile(os.TempDir(), "gitlab")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(file.Name())
-	filename := file.Name() + ".tar.gz"
+	filename := GitLabBackupPrefix + time.Now().UTC().Format(time.RFC3339) + ".tar.gz"
 
 	options.Command = []string{"tar", "czf", filename, "/etc/gitlab"}
 	err = ExecWithOptions(options)
