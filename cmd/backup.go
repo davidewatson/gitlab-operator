@@ -35,7 +35,7 @@ func Backup(s3 string) error {
 	if err != nil {
 		return err
 	} else if len(podNames) != 1 {
-		return fmt.Errorf("There were %v pods with label %v=%v when exactly one was expected\n", len(podNames), key, value)
+		return fmt.Errorf("there were %v pods with label %v=%v when exactly one was expected\n", len(podNames), key, value)
 	}
 
 	fmt.Printf("Begining backup of GitLab instance %v, %v\n", namespace, podNames[0])

@@ -70,7 +70,7 @@ func GetPodsWithLabel(namespace, key, value string) ([]string, error) {
 
 	pods, err := clientset.Core().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
-		return nil, fmt.Errorf("Unable to list pods: err %v\n", err)
+		return nil, fmt.Errorf("unable to list pods: err %v\n", err)
 	}
 
 	var podNames []string
