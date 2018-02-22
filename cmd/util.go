@@ -20,6 +20,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/url"
+	"os"
 	"strings"
 
 	"k8s.io/api/core/v1"
@@ -134,6 +135,8 @@ func ExecWithOptions(options ExecOptions) error {
 	}
 
 	fmt.Printf("%v\n%v\n", strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()))
+	fmt.Printf("Finished running %v\n", options.Command)
+
 	return err
 }
 
@@ -148,4 +151,69 @@ func execute(method string, url *url.URL, config *rest.Config, stdin io.Reader, 
 		Stderr: stderr,
 		Tty:    tty,
 	})
+}
+
+type fileSpec struct {
+	PodNamespace string
+	PodName      string
+	File         string
+}
+
+func CopyFromPod(src, dest fileSpec) error {
+	config, clientset, err := GetInCluster()
+	if err != nil {
+		return err
+	}
+
+	pod, err := clientset.Core().Pods(src.PodNamespace).Get(src.PodName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	if pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodFailed {
+		return fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
+	}
+	containerName := pod.Spec.Containers[0].Name
+
+	reader, writer := io.Pipe()
+	// TODO: Improve error messages by first testing if 'tar' is present in the container?
+	command := []string{"tar", "cf", "-", src.File}
+
+	go func() {
+		defer writer.Close()
+
+		req := clientset.RESTClient().Post().
+			Resource("pods").
+			Name(src.PodName).
+			Namespace(src.PodNamespace).
+			SubResource("exec").
+			Param("container", containerName)
+		req.VersionedParams(&v1.PodExecOptions{
+			Container: containerName,
+			Command:   command,
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       false,
+		}, scheme.ParameterCodec)
+
+		_ = execute("POST", req.URL(), config, nil, writer, bytes.NewBuffer([]byte{}), false)
+		return
+	}()
+
+	return createFileFromStream(reader, dest.File)
+}
+
+func createFileFromStream(reader io.Reader, destFilename string) error {
+	file, err := os.OpenFile(destFilename, os.O_RDWR|os.O_CREATE, 0700)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, reader)
+	if err != nil {
+		return err
+	}
+
+	return file.Close()
 }
