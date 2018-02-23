@@ -215,5 +215,5 @@ func createFileFromStream(reader io.Reader, destFilename string) error {
 		return err
 	}
 
-	return file.Close()
+	return nil
 }
