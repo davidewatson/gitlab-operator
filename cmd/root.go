@@ -23,10 +23,12 @@ import (
 )
 
 const (
-	GitLabLabelKey      = "app"
-	GitLabLabelValue    = "gl-gitlab-ce"
-	GitLabContainerName = "gl-gitlab-ce"
-	GitLabBackupPrefix  = "gitlab-"
+	GitLabLabelKey          = "app"
+	GitLabLabelValue        = "gl-gitlab-ce"
+	GitLabContainerName     = "gl-gitlab-ce"
+	GitLabRemoteRakeDir     = "/var/opt/gitlab/backups"
+	GitLabRemoteEtcFile     = GitLabRemoteRakeDir + "/gitlab-etc.tar.gz"
+	GitLabLocalBackupPrefix = "gitlab-backup-"
 )
 
 var S3Location string

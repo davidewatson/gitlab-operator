@@ -49,21 +49,48 @@ func Backup(s3 string) error {
 		CaptureStderr: true,
 	}
 
+	// Remove the contents of the backup directory to avoid resource
+	// exhaustion and simplify identifying the backup we are about
+	// to generate.
+	options.Command = []string{"rm", "-f", GitLabRemoteRakeDir + "/*"}
+	err = ExecWithOptions(options)
+	if err != nil {
+		return err
+	}
+
+	// Run the gitlab rake backup command. It will place a tarball
+	// in GitLabRemoteRakeDir
 	options.Command = []string{"gitlab-rake", "gitlab:backup:create"}
 	err = ExecWithOptions(options)
 	if err != nil {
 		return err
 	}
 
-	filename := GitLabBackupPrefix + time.Now().UTC().Format(time.RFC3339) + ".tar.gz"
-
-	options.Command = []string{"tar", "czf", filename, "/etc/gitlab"}
+	// Backup additional GitLab configuration. Place the resulting
+	// tarball in the same directory as the rake backup.
+	options.Command = []string{"tar", "czf", GitLabRemoteEtcFile, "/etc/gitlab"}
 	err = ExecWithOptions(options)
 	if err != nil {
 		return err
 	}
 
-	options.Command = []string{"aws", "s3", "cp", filename, s3}
+	// Create a tarball of the remote backup dir and save it locally.
+	localFilename := GitLabLocalBackupPrefix + time.Now().UTC().Format(time.RFC3339) + ".tar.gz"
+	src := fileSpec{PodNamespace: namespace,
+		PodName: podNames[0],
+		File:    GitLabRemoteRakeDir,
+	}
+	dest := fileSpec{
+		File: localFilename,
+	}
+	err = CopyFromPod(src, dest)
+	if err != nil {
+		return err
+	}
+
+	// TODO: Copy to S3
+
+	options.Command = []string{"rm", "-f", localFilename}
 	err = ExecWithOptions(options)
 	if err != nil {
 		return err
